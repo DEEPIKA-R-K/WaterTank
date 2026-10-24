@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Water Tank Problem</title>
+<style>
+  body   { font-family: Arial, sans-serif; margin: 24px; }
+  input  { width: 320px; padding: 6px; }
+  button { padding: 6px 14px; cursor: pointer; }
+  #result { margin: 16px 0; font-size: 20px; font-weight: bold; }
+  #error  { color: #c00; min-height: 1em; }
+  svg     { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+  <h2>Water Tank Problem</h2>
+
+  <input id="input" value="0,4,0,0,0,6,0,6,4,0" placeholder="e.g. 0,4,0,0,0,6,0,6,4,0">
+  <button id="run">Compute</button>
+
+  <p id="error"></p>
+  <p id="result"></p>
+  <div id="tank"></div>
+
+<script>
+
+function parseInput(text) {
+  const parts = text.split(",").map(s => s.trim());
+  const heights = parts.map(Number);
+
+  const valid = parts.length > 0 &&
+    heights.every((n, i) => parts[i] !== "" && Number.isInteger(n) && n > -1);
+
+  if (!valid) throw new Error("Enter non-negative integers separated by commas.");
+  return heights;
+}
+
+
+function computeWater(heights) {
+  const n = heights.length;
+  const leftMax  = new Array(n);
+  const rightMax = new Array(n);
+  const water    = new Array(n).fill(0);
+
+  
+  leftMax[0] = heights[0];
+  for (let i = 1; i < n; i++) {
+    leftMax[i] = Math.max(leftMax[i - 1], heights[i]);
+  }
+
+  rightMax[n - 1] = heights[n - 1];
+  for (let i = n - 2; i >= 0; i--) {
+    rightMax[i] = Math.max(rightMax[i + 1], heights[i]);
+  }
+
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    water[i] = Math.min(leftMax[i], rightMax[i]) - heights[i];
+    total += water[i];
+  }
+  return { water, total };
+}
+
+/* ---------- STEP C: draw SVG ---------- */
+const SVG_NS = "http://www.w3.org/2000/svg";
+const CELL_W = 50, CELL_H = 28;
+
+function makeRect(x, y, fill) {
+  const r = document.createElementNS(SVG_NS, "rect");
+  r.setAttribute("x", x);
+  r.setAttribute("y", y);
+  r.setAttribute("width", CELL_W);
+  r.setAttribute("height", CELL_H);
+  r.setAttribute("fill", fill);
+  r.setAttribute("stroke", "#000");
+  return r;
+}
+
+function drawTank(heights, water) {
+  const cols = heights.length;
+  // total rows = tallest column (water never rises above the tallest block); +1 row of headroom
+  const rows = Math.max(...heights) + 1;
+
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${cols * CELL_W} ${rows * CELL_H}`);
+  svg.setAttribute("width", cols * CELL_W);
+
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows; r++) {
+      // r = 0 is the BOTTOM row; SVG's y grows downward, so flip it
+      const x = c * CELL_W;
+      const y = (rows - 1 - r) * CELL_H;
+
+      let fill = "#fff";
+      if (r < heights[c]) fill = "#ffff00";                       // block
+      else if (r < heights[c] + water[c]) fill = "#00b0f0";       // water
+
+      svg.appendChild(makeRect(x, y, fill));
+    }
+  }
+
+  const tank = document.getElementById("tank");
+  tank.innerHTML = "";
+  tank.appendChild(svg);
+}
+
+/* ---------- STEP D: wire up the UI ---------- */
+function run() {
+  const errorEl  = document.getElementById("error");
+  const resultEl = document.getElementById("result");
+  errorEl.textContent = "";
+
+  try {
+    const heights = parseInput(document.getElementById("input").value);
+    const { water, total } = computeWater(heights);
+    resultEl.textContent = `Output: ${total} Units`;
+    drawTank(heights, water);
+  } catch (e) {
+    resultEl.textContent = "";
+    document.getElementById("tank").innerHTML = "";
+    errorEl.textContent = e.message;
+  }
+}
+
+document.getElementById("run").addEventListener("click", run);
+run(); 
+</script>
+</body>
+</html>
